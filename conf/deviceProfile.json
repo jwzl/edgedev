@@ -5,15 +5,15 @@
 	"metadata": {
 		"devicetype": "normal",
 		"createTime": "2020/2/21",
-		"mqtt-broker-url":, "tcp://127.0.0.1:1883"
+		"mqtt-broker-url": "tcp://127.0.0.1:1883"
 	},
 	"properties": [
 		{
 			"name": "led_pin0",
 			"type": "int32",
-			"meta": {
+			"metadata": {
 				"iotype": "output"
-			},
-		},
-	],
+			}
+		}
+	]
 }

@@ -3,8 +3,6 @@ package config
 import(
 	"io/ioutil"
 	"encoding/json"
-
-	"k8s.io/klog"
 )
 
 type DeviceConfig struct{

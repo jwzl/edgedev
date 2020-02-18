@@ -15,6 +15,5 @@ func main() {
 		klog.Warningf("get device profile error with err %v", err)
 		return
 	}	
-
 	klog.Infof("device profile is", deviceProfile)
 }
