@@ -1,0 +1,19 @@
+{
+	"id":	"00-0B-AB-C0-C2-C4",
+	"name":	"led-device-001",
+	"description": "this is normal led device",
+	"metadata": {
+		"devicetype": "normal",
+		"createTime": "2020/2/21",
+		"mqtt-broker-url":, "tcp://127.0.0.1:1883"
+	},
+	"properties": [
+		{
+			"name": "led_pin0",
+			"type": "int32",
+			"meta": {
+				"iotype": "output"
+			},
+		},
+	],
+}
