@@ -14,27 +14,24 @@ import (
 var (
 	// TokenWaitTime to wait
 	TokenWaitTime = 120 * time.Second
-
-	SubTopics = []string{
-		//"$hw/events/upload/#",
-		"$hw/events/device/#",
-	}
 )
 
 type MessageArrivedFunc func(topic string, payload []byte)
 // Client struct
 type Client struct {
 	MQTTUrl string
+	SubTopics []string
 	PubCli  MQTT.Client
 	SubCli  MQTT.Client
 	onSubMessageFunc	MessageArrivedFunc
 }
 
 
-func NewMqttClient(url string, subFunc MessageArrivedFunc) *Client {
+func NewMqttClient(url string, subTopics []string, subFunc MessageArrivedFunc) *Client {
 
 	return &Client{
 		MQTTUrl: url,
+		SubTopics: subTopics,
 		onSubMessageFunc: subFunc,
 	}
 }
@@ -74,7 +71,7 @@ func (mq *Client) onSubConnectionLost(client MQTT.Client, err error) {
 }
 
 func (mq *Client) onSubConnect(client MQTT.Client) {
-	for _, t := range SubTopics {
+	for _, t := range mq.SubTopics {
 		token := client.Subscribe(t, 1, mq.OnSubMessageReceived)
 		if rs, err := CheckClientToken(token); !rs {
 			klog.Errorf("edge-hub-cli subscribe topic: %s, %v", t, err)

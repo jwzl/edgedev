@@ -9,6 +9,6 @@ type Transfer interface {
 /*
 * New client for transfer interface
 */
-func NewClient(url string, subFunc MessageArrivedFunc) Transfer {
-	return NewMqttClient(url, subFunc)
+func NewClient(url string, subTopics []string, subFunc MessageArrivedFunc) Transfer {
+	return NewMqttClient(url, subTopics, subFunc)
 }

@@ -4,6 +4,7 @@ import (
 
 	"k8s.io/klog"
 	"github.com/jwzl/edgedev/pkg/config"
+	"github.com/jwzl/edgedev/pkg/device"
 )
 
 
@@ -16,4 +17,14 @@ func main() {
 		return
 	}	
 	klog.Infof("device profile is", deviceProfile)
+
+	device, err := device.InitDevice(deviceProfile)
+	if err != nil {
+		klog.Warningf("init device with err %v", err)
+		return
+	}	
+
+	id := device.GetDeviceID()
+	klog.Infof("device id is", id )
+	
 }

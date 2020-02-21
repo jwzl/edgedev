@@ -1,10 +1,12 @@
 package device
 
 import (
+	"fmt"
 	"sync"
 	"strconv"
-	_"strings"	
+	"strings"	
 	"errors"
+	"encoding/json"
 
 	"k8s.io/klog"
 	"github.com/jwzl/edgeOn/common"
@@ -31,8 +33,9 @@ type Device struct {
 	deviceMutex			*sync.Mutex
 	DeviceTwin 			*common.DeviceTwin
 }
-func initDevice(conf *config.DeviceConfig) (*Device, error) {
+func InitDevice(conf *config.DeviceConfig) (*Device, error) {
 	var length int
+	var brokerUrl string 
 
 	if conf == nil {
 		return nil, errors.New("conf is empty.")
@@ -46,6 +49,10 @@ func initDevice(conf *config.DeviceConfig) (*Device, error) {
 
 	deviceTwin.MetaData = make([]common.MetaType, 0)
 	for name, value := range conf.MetaData {
+		if "mqtt-broker-url" == name {
+			brokerUrl = value
+			continue
+		}
 		meta := common.MetaType{
 			Name: name,
 			Value: value,
@@ -106,7 +113,11 @@ func initDevice(conf *config.DeviceConfig) (*Device, error) {
 		DeviceTwin: deviceTwin,
 	}
 
-	dev.transferHandle = transfer.NewClient(brokerUrl, dev.onMessageArrived)
+	//make subscribe topics.
+	subTopics := []string {
+		fmt.Sprintf("$hw/events/device/%s/#", dev.GetDeviceID()),
+	}	
+	dev.transferHandle = transfer.NewClient(brokerUrl, subTopics, dev.onMessageArrived)
 	//init transfer client and start to connect the server.
 	dev.transferHandle.InitAndConnect()
 	return dev, nil
@@ -115,19 +126,33 @@ func initDevice(conf *config.DeviceConfig) (*Device, error) {
 /*
 * On message arrived.
 */
-func (dev *Device) onMessageArrived(topic string payload []byte){
+func (dev *Device) onMessageArrived(topic string, payload []byte){
+	splitString := strings.Split(topic, "/")
+	deviceID := splitString[3]
 
+	if len(splitString) < 8 {
+		return
+	}
+
+	if dev.Match(deviceID) != true {
+		return
+	}
+
+	switch splitString[6] {
+	case common.DGTWINS_OPS_DETECT:
+	case common.DGTWINS_OPS_UPDATE:
+	case common.DGTWINS_OPS_DELETE:
+	}
 }
 /*
 * Match for incoming request.
 */
-func (dev *Device) Match(msgTwin *common.DeviceTwin) bool {
+func (dev *Device) Match(deviceID string) bool {
 
-	if msgTwin.ID != dev.DeviceTwin.ID {
+	if deviceID != dev.DeviceTwin.ID {
 		return false
 	}
 
-	dev.State = DEVICE_STATE_ONLINE
 	return true
 }
 
@@ -136,7 +161,7 @@ func (dev *Device) Match(msgTwin *common.DeviceTwin) bool {
 * Update properties of this device.
 */
 func (dev *Device) UpdateProps(msgTwin *common.DeviceTwin) error {
-	propArray []string
+	var propArray []string
 
 	if msgTwin.ID != dev.DeviceTwin.ID {
 		klog.Warningf("unexpected deviceID %d", msgTwin.ID)
@@ -190,10 +215,21 @@ func (dev *Device) SyncDeviceProperties(properties map[string][]byte) error {
 	dev.deviceMutex.Unlock()
 
 	//build device message.
-	deviceMessage := dev.buildDeviceReportMessage(syncProps)
+	payload, err := dev.buildDeviceReportMessage(syncProps)
+	if err != nil {
+		return err
+	}
+
+	/*
+	* twin topic format is :
+	* 	$hw/events/twin/deviceID/source/target/operation/resource	
+	*/
+	topic := fmt.Sprintf("$hw/events/twin/%s/%s/%s/%s/%s", 
+					dev.GetDeviceID(), common.DeviceName, common.TwinModuleName, 
+							common.DGTWINS_OPS_SYNC, common.DGTWINS_RESOURCE_DEVICE)
 
 	//send to mqtt module to send this message.
-	return nil
+	return dev.transferHandle.Send(topic, payload)
 }
 
 func (dev *Device) GetDeviceID() string {
@@ -217,7 +253,7 @@ func (dev *Device) GetPropertyDesiredValue(name string) ([]byte, error) {
 /*
 * build device report message.
 */
-func (dev *Device) buildDeviceReportMessage(reported []common.TwinProperty) *common.DeviceMessage {
+func (dev *Device) buildDeviceReportMessage(reported []common.TwinProperty) ([]byte, error) {
 	
 	deviceTwin := common.DeviceTwin{
 		ID: dev.DeviceTwin.ID,
@@ -227,7 +263,9 @@ func (dev *Device) buildDeviceReportMessage(reported []common.TwinProperty) *com
 		},
 	}
 
-	return &common.DeviceMessage{
+	deviceMsg := common.DeviceMessage{
 		Twin: deviceTwin,
 	}
+
+	return json.Marshal(deviceMsg)
 }
