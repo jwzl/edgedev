@@ -18,13 +18,26 @@ func main() {
 	}	
 	klog.Infof("device profile is", deviceProfile)
 
-	device, err := device.InitDevice(deviceProfile)
+	dev, err := device.InitDevice(deviceProfile)
 	if err != nil {
 		klog.Warningf("init device with err %v", err)
 		return
 	}	
 
-	id := device.GetDeviceID()
+	id := dev.GetDeviceID()
 	klog.Infof("device id is", id )
 	
+	for {
+		if dev.State != device.DEVICE_STATE_ONLINE {
+			continue
+		}
+
+		klog.Infof("device id is online")
+		break
+	}
+
+	
+	for {
+
+	}
 }

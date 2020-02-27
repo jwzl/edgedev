@@ -15,8 +15,10 @@ import (
 )
 
 const (
+	DEVICE_STATE_INIT	= "initial"
 	DEVICE_STATE_ONLINE	= "online"
 	DEVICE_STATE_OFFLINE	= "offline"
+	DEVICE_STATE_DELETE = "deleted"  
 )
 var (
 	gDeviceTwin *common.DeviceTwin
@@ -127,10 +129,13 @@ func InitDevice(conf *config.DeviceConfig) (*Device, error) {
 * On message arrived.
 */
 func (dev *Device) onMessageArrived(topic string, payload []byte){
+	var deviceMsg common.DeviceMessage
+	var respMsg common.DeviceResponse
+
 	splitString := strings.Split(topic, "/")
 	deviceID := splitString[3]
 
-	if len(splitString) < 8 {
+	if len(splitString) < 9 {
 		return
 	}
 
@@ -138,12 +143,65 @@ func (dev *Device) onMessageArrived(topic string, payload []byte){
 		return
 	}
 
+	err := json.Unmarshal(payload, &deviceMsg)
+	if err != nil {
+		klog.Warningf("Unmarshal with err %v", err)		
+		return 
+	}
+
 	switch splitString[6] {
 	case common.DGTWINS_OPS_DETECT:
+		/* on  device detect. */
+		dev.State = DEVICE_STATE_ONLINE
+
+		klog.Infof(" device is online")
+		respMsg.Code = strconv.Itoa(common.DeviceFound)
+		respMsg.Reason = "online"
+		respMsg.Twin = *dev.DeviceTwin
 	case common.DGTWINS_OPS_UPDATE:
+		
+		err := dev.UpdateProps(&deviceMsg.Twin)
+		if err == nil {
+			respMsg.Code = strconv.Itoa(common.RequestSuccessCode)
+			respMsg.Reason = "success"
+		}else {
+			respMsg.Code = strconv.Itoa(common.DeviceNotReady)
+			respMsg.Reason = "offline"
+		}
+
+		respMsg.Twin =	common.DeviceTwin{
+				ID: dev.DeviceTwin.ID,
+		}
 	case common.DGTWINS_OPS_DELETE:
+		dev.State = DEVICE_STATE_DELETE
+
+		klog.Infof(" device is Deleteed")
+		respMsg.Code = strconv.Itoa(common.RequestSuccessCode)
+		respMsg.Reason = "success"
+		respMsg.Twin =	common.DeviceTwin{
+				ID: dev.DeviceTwin.ID,
+		}
+	default:
+		klog.Warningf("No such operation!")	
 	}
+
+	payload, err = json.Marshal(respMsg)
+	if err != nil {
+		return 
+	}
+
+	/*
+	* twin topic format is :
+	* 	$hw/events/twin/deviceID/source/target/operation/resource/parentid	
+	*/
+	topic = fmt.Sprintf("$hw/events/twin/%s/%s/%s/%s/%s/%s", 
+					dev.GetDeviceID(), common.DeviceName, "dgtwin", 
+					common.DGTWINS_OPS_RESPONSE, common.DGTWINS_RESOURCE_TWINS, splitString[8])
+
+	//send to mqtt module to send this message.
+	dev.transferHandle.Send(topic, payload)
 }
+
 /*
 * Match for incoming request.
 */
@@ -225,8 +283,8 @@ func (dev *Device) SyncDeviceProperties(properties map[string][]byte) error {
 	* 	$hw/events/twin/deviceID/source/target/operation/resource	
 	*/
 	topic := fmt.Sprintf("$hw/events/twin/%s/%s/%s/%s/%s", 
-					dev.GetDeviceID(), common.DeviceName, common.TwinModuleName, 
-							common.DGTWINS_OPS_SYNC, common.DGTWINS_RESOURCE_DEVICE)
+					dev.GetDeviceID(), common.DeviceName, "dgtwin", 
+							common.DGTWINS_OPS_SYNC, common.DGTWINS_RESOURCE_TWINS)
 
 	//send to mqtt module to send this message.
 	return dev.transferHandle.Send(topic, payload)
@@ -269,3 +327,4 @@ func (dev *Device) buildDeviceReportMessage(reported []common.TwinProperty) ([]b
 
 	return json.Marshal(deviceMsg)
 }
+
