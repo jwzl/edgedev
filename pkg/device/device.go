@@ -129,6 +129,7 @@ func InitDevice(conf *config.DeviceConfig) (*Device, error) {
 * On message arrived.
 */
 func (dev *Device) onMessageArrived(topic string, payload []byte){
+	var resource string 
 	var deviceMsg common.DeviceMessage
 	var respMsg common.DeviceResponse
 
@@ -158,8 +159,9 @@ func (dev *Device) onMessageArrived(topic string, payload []byte){
 		respMsg.Code = strconv.Itoa(common.DeviceFound)
 		respMsg.Reason = "online"
 		respMsg.Twin = *dev.DeviceTwin
+		resource = common.DGTWINS_RESOURCE_TWINS
 	case common.DGTWINS_OPS_UPDATE:
-		
+		klog.Infof(" device is update")
 		err := dev.UpdateProps(&deviceMsg.Twin)
 		if err == nil {
 			respMsg.Code = strconv.Itoa(common.RequestSuccessCode)
@@ -172,6 +174,7 @@ func (dev *Device) onMessageArrived(topic string, payload []byte){
 		respMsg.Twin =	common.DeviceTwin{
 				ID: dev.DeviceTwin.ID,
 		}
+		resource = common.DGTWINS_RESOURCE_PROPERTY
 	case common.DGTWINS_OPS_DELETE:
 		dev.State = DEVICE_STATE_DELETE
 
@@ -181,6 +184,7 @@ func (dev *Device) onMessageArrived(topic string, payload []byte){
 		respMsg.Twin =	common.DeviceTwin{
 				ID: dev.DeviceTwin.ID,
 		}
+		resource = common.DGTWINS_RESOURCE_TWINS
 	default:
 		klog.Warningf("No such operation!")	
 	}
@@ -196,7 +200,7 @@ func (dev *Device) onMessageArrived(topic string, payload []byte){
 	*/
 	topic = fmt.Sprintf("$hw/events/twin/%s/%s/%s/%s/%s/%s", 
 					dev.GetDeviceID(), common.DeviceName, "dgtwin", 
-					common.DGTWINS_OPS_RESPONSE, common.DGTWINS_RESOURCE_TWINS, splitString[8])
+					common.DGTWINS_OPS_RESPONSE, resource, splitString[8])
 
 	//send to mqtt module to send this message.
 	dev.transferHandle.Send(topic, payload)
