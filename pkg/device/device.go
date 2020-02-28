@@ -154,11 +154,13 @@ func (dev *Device) onMessageArrived(topic string, payload []byte){
 	case common.DGTWINS_OPS_DETECT:
 		/* on  device detect. */
 		dev.State = DEVICE_STATE_ONLINE
-
+			
 		klog.Infof(" device is online")
-		respMsg.Code = strconv.Itoa(common.DeviceFound)
+		if deviceMsg.Twin.State == common.DGTWINS_STATE_CREATED {
+			respMsg.Twin = *dev.DeviceTwin
+		}
+		respMsg.Code = strconv.Itoa(common.OnlineCode)
 		respMsg.Reason = "online"
-		respMsg.Twin = *dev.DeviceTwin
 		resource = common.DGTWINS_RESOURCE_TWINS
 	case common.DGTWINS_OPS_UPDATE:
 		klog.Infof(" device is update")
@@ -219,7 +221,7 @@ func (dev *Device) Match(deviceID string) bool {
 }
 
 
-/*
+/*NotifyCh
 * Update properties of this device.
 */
 func (dev *Device) UpdateProps(msgTwin *common.DeviceTwin) error {
@@ -288,7 +290,7 @@ func (dev *Device) SyncDeviceProperties(properties map[string][]byte) error {
 	*/
 	topic := fmt.Sprintf("$hw/events/twin/%s/%s/%s/%s/%s", 
 					dev.GetDeviceID(), common.DeviceName, "dgtwin", 
-							common.DGTWINS_OPS_SYNC, common.DGTWINS_RESOURCE_TWINS)
+							common.DGTWINS_OPS_SYNC, common.DGTWINS_RESOURCE_PROPERTY)
 
 	//send to mqtt module to send this message.
 	return dev.transferHandle.Send(topic, payload)
@@ -332,3 +334,15 @@ func (dev *Device) buildDeviceReportMessage(reported []common.TwinProperty) ([]b
 	return json.Marshal(deviceMsg)
 }
 
+func (dev *Device) WaitDeviceOnline() {
+	for {
+		if dev.State == DEVICE_STATE_ONLINE {
+			break
+		}
+	}
+} 
+
+// GetUpdateCh
+func (dev *Device) GetUpdateCh() chan []string {
+	return dev.NotifyCh
+} 

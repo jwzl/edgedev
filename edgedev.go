@@ -27,17 +27,33 @@ func main() {
 	id := dev.GetDeviceID()
 	klog.Infof("device id is", id )
 	
-	for {
-		if dev.State != device.DEVICE_STATE_ONLINE {
-			continue
-		}
-
-		klog.Infof("device id is online")
-		break
-	}
-
+	dev.WaitDeviceOnline()
+	klog.Infof("device id is online")
 	
 	for {
+		props, ok := <- dev.GetUpdateCh()
+		if !ok {
+			klog.Warningf("channel is closed")
+			return
+		}
 
+		for _ , name := range props {
+			varray, err := dev.GetPropertyDesiredValue(name)
+			if err != nil {
+				klog.Warningf("%s is not found, ignored", name)
+			}
+			switch name {	
+			case "led_pin0":			
+				klog.Infof("led_pin0 property update to ", varray)
+				//value:= varray[0]
+				
+				reported := map[string][]byte{name:varray}
+
+				klog.Infof("Send the reported property ")
+				dev.SyncDeviceProperties(reported)
+			default:
+				klog.Infof("No such property ")
+			}
+		} 
 	}
 }
