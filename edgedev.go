@@ -1,15 +1,48 @@
 package main
 
 import (
-
+	"time"
 	"k8s.io/klog"
 	"github.com/jwzl/edgedev/pkg/config"
 	"github.com/jwzl/edgedev/pkg/device"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
 )
 
+func GetCpuPercent() float64 {
+	percent, _ := cpu.Percent(time.Second, false)
+	
+	return percent[0]
+}
 
+func GetMemPercent() float64 {
+	memInfo, _ := mem.VirtualMemory()
+
+	return memInfo.UsedPercent
+}
+
+func GetMemTotal() uint64 {
+	memInfo, _ := mem.VirtualMemory()
+
+	return memInfo.Total
+}
+
+func GetMemAvailable() uint64 {
+	memInfo, _ := mem.VirtualMemory()
+
+	return memInfo.Available
+}
+
+func GetMemUsed() uint64 {
+	memInfo, _ := mem.VirtualMemory()
+
+	return memInfo.Used
+}
 
 func main() {
+
+	klog.Infof("CPU useage: %.2f%%", GetCpuPercent())
+	klog.Infof("MEM useage: %.2f%%", GetMemPercent())
 
 	deviceProfile, err := config.GetDeviceProfileFile("./conf/deviceProfile.json")
 	if err != nil {
@@ -26,7 +59,7 @@ func main() {
 
 	id := dev.GetDeviceID()
 	klog.Infof("device id is", id )
-	
+
 	dev.WaitDeviceOnline()
 	klog.Infof("device id is online")
 	

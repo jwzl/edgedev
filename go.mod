@@ -10,6 +10,7 @@ require (
 	github.com/jwzl/beehive v0.0.0-20191028085830-1606e1f5c86a
 	github.com/jwzl/edgeOn v1.3.0
 	github.com/jwzl/wssocket v1.0.0
+	github.com/shirou/gopsutil v2.20.7+incompatible // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2 // indirect
 	golang.org/x/sys v0.0.0-20200217220822-9197077df867 // indirect
