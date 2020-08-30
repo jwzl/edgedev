@@ -155,13 +155,24 @@ func (dev *Device) onMessageArrived(topic string, payload []byte){
 		/* on  device detect. */
 		dev.State = DEVICE_STATE_ONLINE
 			
-		klog.Infof(" device is online")
-		if deviceMsg.Twin.State == common.DGTWINS_STATE_CREATED {
+			
+		if dev.DeviceTwin.State != common.DGTWINS_STATE_ONLINE {
+			klog.Infof(" device is online")
+			dev.DeviceTwin.State = common.DGTWINS_STATE_ONLINE
+			// report all information.	
 			respMsg.Twin = *dev.DeviceTwin
+			respMsg.Code = strconv.Itoa(common.OnlineCode)
+			respMsg.Reason = "online"	
+		}else{
+			dumpTwin := dev.dumpTwinInfo()
+			respMsg.Twin = *dumpTwin
+			respMsg.Code = strconv.Itoa(common.RequestSuccessCode)
+			respMsg.Reason = "alive"
+			
+			klog.Infof(" device ping success")
 		}
-		respMsg.Code = strconv.Itoa(common.OnlineCode)
-		respMsg.Reason = "online"
-		resource = common.DGTWINS_RESOURCE_TWINS
+		
+		resource = common.DGTWINS_RESOURCE_TWINS	
 	case common.DGTWINS_OPS_UPDATE:
 		klog.Infof(" device is update")
 		err := dev.UpdateProps(&deviceMsg.Twin)
@@ -220,6 +231,13 @@ func (dev *Device) Match(deviceID string) bool {
 	return true
 }
 
+
+func (dev *Device) dumpTwinInfo() *common.DeviceTwin {
+	return &common.DeviceTwin{
+		ID: dev.DeviceTwin.ID,
+		State: dev.DeviceTwin.State,
+	}
+}
 
 /*NotifyCh
 * Update properties of this device.
